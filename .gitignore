@@ -5,6 +5,11 @@ build/
 *.so
 *.dylib
 *.exe
+mc_test
+
+# Python cache
+__pycache__/
+*.pyc
 
 # OS / editor junk
 .DS_Store
