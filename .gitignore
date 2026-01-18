@@ -1,0 +1,12 @@
+# Build artifacts
+build/
+*.o
+*.a
+*.so
+*.dylib
+*.exe
+
+# OS / editor junk
+.DS_Store
+.vscode/
+.idea/
