@@ -1,13 +1,26 @@
 #ifndef MC_PRICER_H
 #define MC_PRICER_H
 
+#include <random>
+
 double monte_carlo_call(
     double S0,
     double K,
     double r,
     double sigma,
     double T,
-    int N
+    int N,
+    std::mt19937& rng
+);
+
+double monte_carlo_call_antithetic(
+    double S0,
+    double K,
+    double r,
+    double sigma,
+    double T,
+    int N,
+    std::mt19937& rng
 );
 
 double monte_carlo_delta(
@@ -17,16 +30,8 @@ double monte_carlo_delta(
     double sigma,
     double T,
     int N,
-    double h
-);
-
-double monte_carlo_call_antithetic(
-    double S0,
-    double K,
-    double r,
-    double sigma,
-    double T,
-    int N
+    double h,
+    std::mt19937& rng
 );
 
 #endif
