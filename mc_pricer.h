@@ -20,5 +20,13 @@ double monte_carlo_delta(
     double h
 );
 
+double monte_carlo_call_antithetic(
+    double S0,
+    double K,
+    double r,
+    double sigma,
+    double T,
+    int N
+);
 
 #endif
