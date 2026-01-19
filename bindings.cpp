@@ -3,8 +3,7 @@
 
 namespace py = pybind11;
 
-PYBIND11_MODULE(mc_pricer_py, m)
-{
+PYBIND11_MODULE(mc_pricer_py, m) {
     m.doc() = "Monte Carlo option pricer (C++ backend)";
 
     m.def(
@@ -16,7 +15,20 @@ PYBIND11_MODULE(mc_pricer_py, m)
         py::arg("sigma"),
         py::arg("T"),
         py::arg("N"),
-        "Monte Carlo European call option price");
+        "Standard Monte Carlo European call option price"
+    );
+
+    m.def(
+        "call_price_antithetic",
+        &monte_carlo_call_antithetic,
+        py::arg("S0"),
+        py::arg("K"),
+        py::arg("r"),
+        py::arg("sigma"),
+        py::arg("T"),
+        py::arg("N"),
+        "Antithetic Monte Carlo European call option price"
+    );
 
     m.def(
         "delta",
@@ -27,6 +39,7 @@ PYBIND11_MODULE(mc_pricer_py, m)
         py::arg("sigma"),
         py::arg("T"),
         py::arg("N"),
-        py::arg("h") = 0.01,
-        "Monte Carlo Delta via central finite differences");
+        py::arg("h") = 1e-4,
+        "Monte Carlo delta via central finite differences"
+    );
 }
