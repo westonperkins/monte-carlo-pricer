@@ -29,3 +29,18 @@ double monte_carlo_call(
 
     return std::exp(-r * T) * (payoff_sum / N);
 }
+
+double monte_carlo_delta(
+    double S0,
+    double K,
+    double r,
+    double sigma,
+    double T,
+    int N,
+    double h
+) {
+    double price_up = monte_carlo_call(S0 + h, K, r, sigma, T, N);
+    double price_down = monte_carlo_call(S0 - h, K, r, sigma, T, N);
+
+    return (price_up - price_down) / (2.0 * h);
+}

@@ -10,4 +10,15 @@ double monte_carlo_call(
     int N
 );
 
+double monte_carlo_delta(
+    double S0,
+    double K,
+    double r,
+    double sigma,
+    double T,
+    int N,
+    double h
+);
+
+
 #endif
