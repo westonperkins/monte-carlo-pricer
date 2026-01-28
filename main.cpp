@@ -1,6 +1,7 @@
 #include <iostream>
 #include <random>
 #include "mc_pricer.h"
+#include "payoffs.h"
 
 int main()
 {
@@ -51,7 +52,21 @@ int main()
         S0, K, r, sigma, T, N, rng_ant_greeks);
 
     // --------------------------------------------------
-    // Output
+
+    CallPayoff call(K);
+    PutPayoff put(K);
+
+    std::mt19937 rng_call(42);
+    std::mt19937 rng_put(42);
+
+    double call_price = monte_carlo_price(
+        S0, r, sigma, T, N, call, rng_call);
+
+    double put_price = monte_carlo_price(
+        S0, r, sigma, T, N, put, rng_put);
+
+    std::cout << "Generic Call Price : " << call_price << "\n";
+    std::cout << "Generic Put Price  : " << put_price << "\n";
     // --------------------------------------------------
     std::cout << "Antithetic MC Price : " << res_ant.price << '\n';
     std::cout << "Antithetic MC Delta : " << res_ant.delta << '\n';
