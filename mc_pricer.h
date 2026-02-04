@@ -3,13 +3,14 @@
 
 #include <random>
 
+// result container for monte carlo pricing - groups option price and delta
 struct MCResult
 {
     double price;
     double delta;
 };
 
-// Plain Monte Carlo
+// standard monte carlo pricing (call) - estimates price of european call option (no greeks)
 double monte_carlo_call(
     double S0,
     double K,
@@ -17,9 +18,9 @@ double monte_carlo_call(
     double sigma,
     double T,
     int N,
-    std::mt19937& rng);
+    std::mt19937 &rng); // random number generator
 
-// Antithetic Monte Carlo
+// antithetic monte carlo pricing (call) - uses paired simulations to reduce randomness and improve convergence w/o increasing runtime
 double monte_carlo_call_antithetic(
     double S0,
     double K,
@@ -27,9 +28,9 @@ double monte_carlo_call_antithetic(
     double sigma,
     double T,
     int N,
-    std::mt19937& rng);
+    std::mt19937 &rng);
 
-// Finite-difference Delta (diagnostic)
+// finite difference delta (diagnostic) - approximates delta by slightly perturbing the stock price and re running the simulation
 double monte_carlo_delta(
     double S0,
     double K,
@@ -37,10 +38,10 @@ double monte_carlo_delta(
     double sigma,
     double T,
     int N,
-    double h,
-    std::mt19937& rng);
+    double h, // size of price perturbation
+    std::mt19937 &rng);
 
-// Single-pass price + delta
+// single pass monte carlo price and delta - computes both the option price and delta in one simulation pass w pathwise differentiation 
 MCResult monte_carlo_call_with_greeks(
     double S0,
     double K,
@@ -48,9 +49,9 @@ MCResult monte_carlo_call_with_greeks(
     double sigma,
     double T,
     int N,
-    std::mt19937& rng);
+    std::mt19937 &rng);
 
-// Antithetic single-pass price + delta
+// antithetic single pass monte carlo price and delta  - most accurate and efficient
 MCResult monte_carlo_call_antithetic_with_greeks(
     double S0,
     double K,
@@ -58,9 +59,9 @@ MCResult monte_carlo_call_antithetic_with_greeks(
     double sigma,
     double T,
     int N,
-    std::mt19937& rng);
+    std::mt19937 &rng);
 
-// Generic payoff-based pricer
+// generic payoff-based pricer  - prices a european stle derivative using an abstract payoff definition. able to price calls, puts, and future exotic contracts w out changing logic
 class Payoff;
 double monte_carlo_price(
     double S0,
@@ -68,7 +69,7 @@ double monte_carlo_price(
     double sigma,
     double T,
     int N,
-    const Payoff& payoff,
-    std::mt19937& rng);
+    const Payoff &payoff, // use defined payoff logic
+    std::mt19937 &rng);
 
 #endif

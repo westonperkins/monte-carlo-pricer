@@ -6,9 +6,9 @@
 
 namespace
 {
-    // --------------------------------------------------
-    // Shared path evolution logic
-    // --------------------------------------------------
+    // simulate stock price at option maturity
+    // uses standard geometric brownian motion model to evolve the stock price from today (S0) to maturity (T) given a random shock Z
+    // represents market model
     inline double simulate_terminal_price(
         double S0,
         double r,
@@ -21,17 +21,21 @@ namespace
                         sigma * std::sqrt(T) * Z);
     }
 
-    // --------------------------------------------------
-    // Generic Monte Carlo engine (Step 4A)
-    // --------------------------------------------------
+    // generic monte carlo engine
+    // core simulation loop:
+    // 1. draws random samples
+    // 2. evaluates a payoff function
+    // 3. accumulates price and greek contributions
+    // 4. discounts the result to present value
+    // generic and doesn't know anything about option types or payoff formulas
     template <typename PayoffFunc, typename DeltaFunc>
     MCResult monte_carlo_engine(
-        int N,
-        double r,
-        double T,
-        std::mt19937 &rng,
-        PayoffFunc payoff,
-        DeltaFunc delta_contrib)
+        int N,                   // number of simulations
+        double r,                // risk free rate
+        double T,                // time to maturity
+        std::mt19937 &rng,       // random number generator
+        PayoffFunc payoff,       // payoff logic
+        DeltaFunc delta_contrib) // delta contribution logic
     {
         std::normal_distribution<> dist(0.0, 1.0);
 
@@ -55,9 +59,8 @@ namespace
 
 } // anonymous namespace
 
-// ======================================================
-// Plain Monte Carlo call (price only)
-// ======================================================
+// standard monte carlo call option pricing
+// computes the price of a european call option using monte carlo simulation without variance reduction and without greeks
 double monte_carlo_call(
     double S0,
     double K,
@@ -84,9 +87,9 @@ double monte_carlo_call(
     return res.price;
 }
 
-// ======================================================
-// Finite-difference Delta (diagnostic only)
-// ======================================================
+// finite difference delta (diagnostic)
+// approximates delta by re pricing the option at slightly higher and lower stock prices
+// this method is computationally expensive and noisy, and is included only for comparison purposes
 double monte_carlo_delta(
     double S0,
     double K,
@@ -106,9 +109,8 @@ double monte_carlo_delta(
     return (price_up - price_down) / (2.0 * h);
 }
 
-// ======================================================
-// Antithetic Monte Carlo (price only)
-// ======================================================
+// antithetic monte carlo call pricing
+// uses paired random samples (Z and -Z) to reduce simulaiton noise and imporve convergence while preserving computational cost
 double monte_carlo_call_antithetic(
     double S0,
     double K,
@@ -140,9 +142,9 @@ double monte_carlo_call_antithetic(
     return res.price;
 }
 
-// ======================================================
-// Single-pass call + delta (pathwise Greeks)
-// ======================================================
+// single pass monte carlo price and delta
+// computes both the option price and delta in a single simulation pass using pathwise differentiation
+// more efficient and accurate than finite difference mehtods
 MCResult monte_carlo_call_with_greeks(
     double S0,
     double K,
@@ -168,9 +170,8 @@ MCResult monte_carlo_call_with_greeks(
         N, r, T, rng, payoff, delta_contrib);
 }
 
-// ======================================================
-// Antithetic single-pass call + delta
-// ======================================================
+// antithetic single pass monte carlo price and delta
+// combines variance reduction with single pass greeks estimation - most accurate and efficient
 MCResult monte_carlo_call_antithetic_with_greeks(
     double S0,
     double K,
@@ -208,6 +209,8 @@ MCResult monte_carlo_call_antithetic_with_greeks(
         half_N, r, T, rng, payoff, delta_contrib);
 }
 
+// generic payoff based monte carlo pricing
+// prices any european style derivative using a user supplied payoff definition - simulation engine is independent of contract type 
 double monte_carlo_price(
     double S0,
     double r,
