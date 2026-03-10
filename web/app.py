@@ -160,6 +160,8 @@ def api_analyze():
 
 
 if __name__ == "__main__":
-    print("\n  Monte Carlo Options Analyzer")
-    print("  Open http://localhost:5050 in your browser\n")
-    app.run(debug=True, port=5050)
+    port = int(os.environ.get("PORT", 5050))
+    debug = os.environ.get("FLASK_DEBUG", "1") == "1"
+    print(f"\n  Monte Carlo Options Analyzer")
+    print(f"  Open http://localhost:{port} in your browser\n")
+    app.run(host="0.0.0.0", port=port, debug=debug)
