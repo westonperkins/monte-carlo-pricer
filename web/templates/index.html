@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Monte Carlo Options Analyzer</title>
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+<style>
+  :root {
+    --bg: #0f0f23;
+    --surface: #1a1a2e;
+    --surface2: #16213e;
+    --border: #2a2a4a;
+    --text: #e2e8f0;
+    --muted: #8892a6;
+    --accent: #3498db;
+    --green: #2ecc71;
+    --red: #e74c3c;
+    --yellow: #f39c12;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  .header {
+    padding: 20px 32px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .header h1 {
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: 1px;
+  }
+
+  .header .tag {
+    background: var(--surface2);
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    color: var(--accent);
+  }
+
+  .container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 24px 32px;
+  }
+
+  /* --- Input Panel --- */
+  .input-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 24px;
+    margin-bottom: 24px;
+  }
+
+  .input-row {
+    display: flex;
+    gap: 16px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .field label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+  }
+
+  .field input, .field select {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 10px 14px;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 14px;
+    min-width: 160px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .field input:focus, .field select:focus {
+    border-color: var(--accent);
+  }
+
+  .btn {
+    padding: 10px 24px;
+    border: none;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: white;
+  }
+
+  .btn-primary:hover { background: #2980b9; }
+
+  .btn-primary:disabled {
+    background: var(--border);
+    color: var(--muted);
+    cursor: not-allowed;
+  }
+
+  .btn-fetch {
+    background: var(--surface2);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+
+  .btn-fetch:hover { border-color: var(--accent); }
+
+  /* --- Status --- */
+  .status {
+    padding: 12px 16px;
+    border-radius: 6px;
+    margin-bottom: 24px;
+    font-size: 13px;
+    display: none;
+  }
+
+  .status.loading {
+    display: block;
+    background: var(--surface2);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+  }
+
+  .status.error {
+    display: block;
+    background: rgba(231, 76, 60, 0.1);
+    border: 1px solid var(--red);
+    color: var(--red);
+  }
+
+  /* --- Results --- */
+  .results { display: none; }
+  .results.visible { display: block; }
+
+  /* --- Verdict Banner --- */
+  .verdict-banner {
+    text-align: center;
+    padding: 28px;
+    border-radius: 8px;
+    margin-bottom: 24px;
+    border: 1px solid var(--border);
+  }
+
+  .verdict-banner .ticker-info {
+    font-size: 14px;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  .verdict-banner .verdict {
+    font-size: 36px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    margin-bottom: 8px;
+  }
+
+  .verdict-banner .verdict-desc {
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .verdict-banner.undervalued {
+    background: rgba(46, 204, 113, 0.08);
+    border-color: var(--green);
+  }
+  .verdict-banner.undervalued .verdict { color: var(--green); }
+
+  .verdict-banner.overvalued {
+    background: rgba(231, 76, 60, 0.08);
+    border-color: var(--red);
+  }
+  .verdict-banner.overvalued .verdict { color: var(--red); }
+
+  .verdict-banner.fair {
+    background: rgba(243, 156, 18, 0.08);
+    border-color: var(--yellow);
+  }
+  .verdict-banner.fair .verdict { color: var(--yellow); }
+
+  /* --- Grid layouts --- */
+  .grid-3 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .grid-2 {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+    margin-bottom: 24px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+  }
+
+  .card h3 {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .stat-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    font-size: 13px;
+  }
+
+  .stat-row .label { color: var(--muted); }
+  .stat-row .value { font-weight: 600; }
+
+  .stat-row .value.green { color: var(--green); }
+  .stat-row .value.red { color: var(--red); }
+
+  /* --- Price bars --- */
+  .price-bars {
+    display: flex;
+    gap: 12px;
+    align-items: flex-end;
+    justify-content: center;
+    height: 140px;
+    padding-top: 20px;
+  }
+
+  .price-bar-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .price-bar {
+    width: 60px;
+    border-radius: 4px 4px 0 0;
+    min-height: 10px;
+    transition: height 0.6s ease;
+  }
+
+  .price-bar-label {
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .price-bar-value {
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  /* --- Charts --- */
+  .chart-container {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 24px;
+  }
+
+  .chart-container h3 {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+
+  /* --- Spot badge --- */
+  .spot-badge {
+    display: inline-block;
+    background: var(--surface2);
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 13px;
+    margin-left: 12px;
+    color: var(--accent);
+  }
+
+  /* spinner */
+  .spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-right: 8px;
+    vertical-align: middle;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  @media (max-width: 900px) {
+    .grid-3 { grid-template-columns: 1fr; }
+    .grid-2 { grid-template-columns: 1fr; }
+    .input-row { flex-direction: column; }
+    .field input, .field select { min-width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>MONTE CARLO OPTIONS ANALYZER</h1>
+  <span class="tag">C++ Engine</span>
+  <span class="tag">Live Market Data</span>
+</div>
+
+<div class="container">
+
+  <!-- Input Panel -->
+  <div class="input-panel">
+    <div class="input-row">
+      <div class="field">
+        <label>Ticker</label>
+        <input type="text" id="ticker" placeholder="PLTR" value="PLTR">
+      </div>
+      <button class="btn btn-fetch" onclick="fetchExpirations()">Load Chain</button>
+      <div class="field">
+        <label>Expiration</label>
+        <select id="expiration" disabled><option>-- load chain first --</option></select>
+      </div>
+      <div class="field">
+        <label>Type</label>
+        <select id="optionType">
+          <option value="call">Call</option>
+          <option value="put">Put</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Strike</label>
+        <select id="strike" disabled><option>-- select expiration --</option></select>
+      </div>
+      <div class="field">
+        <label>Simulations</label>
+        <input type="number" id="numSims" value="500000" min="10000" step="100000">
+      </div>
+      <div class="field">
+        <label>Viz Paths</label>
+        <input type="number" id="numPaths" value="200" min="10" max="1000">
+      </div>
+      <button class="btn btn-primary" id="analyzeBtn" onclick="runAnalysis()" disabled>Analyze</button>
+    </div>
+  </div>
+
+  <div id="status" class="status"></div>
+
+  <!-- Results -->
+  <div id="results" class="results">
+
+    <div id="verdictBanner" class="verdict-banner"></div>
+
+    <div class="grid-3">
+      <div class="card">
+        <h3>Pricing</h3>
+        <div id="pricingCard"></div>
+      </div>
+      <div class="card">
+        <h3>Trade Evaluation</h3>
+        <div id="tradeCard"></div>
+      </div>
+      <div class="card">
+        <h3>Risk Metrics</h3>
+        <div id="riskCard"></div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <h3>Contract Details</h3>
+        <div id="contractCard"></div>
+      </div>
+      <div class="card">
+        <h3>Price Comparison</h3>
+        <div id="priceCompChart" style="height:200px"></div>
+      </div>
+    </div>
+
+    <div class="chart-container">
+      <h3>Monte Carlo Simulation Paths</h3>
+      <div id="pathsChart" style="height:500px"></div>
+    </div>
+
+    <div class="grid-2">
+      <div class="chart-container">
+        <h3>Terminal Price Distribution</h3>
+        <div id="terminalChart" style="height:350px"></div>
+      </div>
+      <div class="chart-container">
+        <h3>PnL Distribution (if you bought this contract)</h3>
+        <div id="pnlChart" style="height:350px"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let spotPrice = null;
+let chainData = null;
+
+function setStatus(msg, type) {
+  const el = document.getElementById('status');
+  el.className = 'status ' + type;
+  el.innerHTML = (type === 'loading' ? '<span class="spinner"></span>' : '') + msg;
+}
+
+function clearStatus() {
+  document.getElementById('status').className = 'status';
+}
+
+async function fetchExpirations() {
+  const ticker = document.getElementById('ticker').value.trim().toUpperCase();
+  if (!ticker) return;
+
+  setStatus(`Fetching options chain for ${ticker}...`, 'loading');
+
+  try {
+    const res = await fetch(`/api/expirations/${ticker}`);
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    spotPrice = data.price;
+
+    const sel = document.getElementById('expiration');
+    sel.innerHTML = data.expirations.map(e => `<option value="${e}">${e}</option>`).join('');
+    sel.disabled = false;
+
+    clearStatus();
+    fetchChain();
+  } catch (e) {
+    setStatus('Error: ' + e.message, 'error');
+  }
+}
+
+async function fetchChain() {
+  const ticker = document.getElementById('ticker').value.trim().toUpperCase();
+  const expiration = document.getElementById('expiration').value;
+  if (!ticker || !expiration) return;
+
+  setStatus('Loading strikes...', 'loading');
+
+  try {
+    const res = await fetch(`/api/chain/${ticker}/${expiration}`);
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    chainData = data;
+    spotPrice = data.spot;
+    updateStrikes();
+    clearStatus();
+  } catch (e) {
+    setStatus('Error: ' + e.message, 'error');
+  }
+}
+
+function updateStrikes() {
+  const type = document.getElementById('optionType').value;
+  const chain = type === 'call' ? chainData.calls : chainData.puts;
+  const sel = document.getElementById('strike');
+
+  let closestIdx = 0;
+  let closestDiff = Infinity;
+
+  sel.innerHTML = chain.map((c, i) => {
+    const diff = Math.abs(c.strike - spotPrice);
+    if (diff < closestDiff) { closestDiff = diff; closestIdx = i; }
+    const tag = diff / spotPrice < 0.02 ? ' (ATM)' : '';
+    return `<option value="${c.strike}">$${c.strike.toFixed(2)}${tag} — $${c.lastPrice.toFixed(2)}</option>`;
+  }).join('');
+
+  sel.selectedIndex = closestIdx;
+  sel.disabled = false;
+  document.getElementById('analyzeBtn').disabled = false;
+}
+
+document.getElementById('expiration').addEventListener('change', fetchChain);
+document.getElementById('optionType').addEventListener('change', () => {
+  if (chainData) updateStrikes();
+});
+
+async function runAnalysis() {
+  const ticker = document.getElementById('ticker').value.trim().toUpperCase();
+  const expiration = document.getElementById('expiration').value;
+  const strike = parseFloat(document.getElementById('strike').value);
+  const optionType = document.getElementById('optionType').value;
+  const numSims = parseInt(document.getElementById('numSims').value);
+  const numPaths = parseInt(document.getElementById('numPaths').value);
+
+  setStatus(`Running ${numSims.toLocaleString()} Monte Carlo simulations...`, 'loading');
+  document.getElementById('analyzeBtn').disabled = true;
+
+  try {
+    const res = await fetch('/api/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ticker, expiration, strike, optionType, numSims, numPaths }),
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    clearStatus();
+    renderResults(data, ticker, expiration, strike, optionType);
+  } catch (e) {
+    setStatus('Error: ' + e.message, 'error');
+  } finally {
+    document.getElementById('analyzeBtn').disabled = false;
+  }
+}
+
+function statRow(label, value, cls) {
+  return `<div class="stat-row"><span class="label">${label}</span><span class="value ${cls || ''}">${value}</span></div>`;
+}
+
+function renderResults(d, ticker, expiration, strike, optionType) {
+  document.getElementById('results').classList.add('visible');
+
+  // verdict
+  const banner = document.getElementById('verdictBanner');
+  let verdictClass, verdictText, verdictDesc;
+  if (d.diffPct > 5) {
+    verdictClass = 'undervalued';
+    verdictText = 'UNDERVALUED';
+    verdictDesc = `MC fair value is ${d.diffPct.toFixed(1)}% above market price — contract appears cheap`;
+  } else if (d.diffPct < -5) {
+    verdictClass = 'overvalued';
+    verdictText = 'OVERVALUED';
+    verdictDesc = `MC fair value is ${Math.abs(d.diffPct).toFixed(1)}% below market price — contract appears expensive`;
+  } else {
+    verdictClass = 'fair';
+    verdictText = 'FAIRLY PRICED';
+    verdictDesc = `MC fair value is within ${Math.abs(d.diffPct).toFixed(1)}% of market price`;
+  }
+
+  banner.className = `verdict-banner ${verdictClass}`;
+  banner.innerHTML = `
+    <div class="ticker-info">${ticker} $${strike.toFixed(2)} ${optionType.toUpperCase()} — Exp: ${expiration} <span class="spot-badge">Spot: $${d.spot.toFixed(2)}</span></div>
+    <div class="verdict">${verdictText}</div>
+    <div class="verdict-desc">${verdictDesc}</div>
+  `;
+
+  // pricing card
+  const diff = d.mcPrice - d.marketPrice;
+  document.getElementById('pricingCard').innerHTML =
+    statRow('MC Fair Value', `$${d.mcPrice.toFixed(4)}`) +
+    statRow('BS Fair Value', `$${d.bsPrice.toFixed(4)}`) +
+    statRow('Market Price', `$${d.marketPrice.toFixed(4)}`) +
+    statRow('95% CI', `[$${d.ciLower.toFixed(4)}, $${d.ciUpper.toFixed(4)}]`) +
+    statRow('Std Error', `$${d.stdError.toFixed(6)}`) +
+    statRow('Delta', d.delta.toFixed(4)) +
+    statRow('MC - Market', `$${diff >= 0 ? '+' : ''}${diff.toFixed(4)} (${d.diffPct >= 0 ? '+' : ''}${d.diffPct.toFixed(1)}%)`, diff >= 0 ? 'green' : 'red');
+
+  // trade card
+  document.getElementById('tradeCard').innerHTML =
+    statRow('Expected PnL', `$${d.expectedPnl >= 0 ? '+' : ''}${d.expectedPnl.toFixed(4)}`, d.expectedPnl >= 0 ? 'green' : 'red') +
+    statRow('Prob Profit', `${(d.probProfit * 100).toFixed(1)}%`) +
+    statRow('Prob ITM', `${(d.probItm * 100).toFixed(1)}%`) +
+    statRow('Prob Breakeven', `${(d.probBreakeven * 100).toFixed(1)}%`) +
+    statRow('IV', `${(d.sigma * 100).toFixed(1)}%`) +
+    statRow('Risk-Free Rate', `${(d.riskFreeRate * 100).toFixed(2)}%`) +
+    statRow('Time to Expiry', `${(d.timeToExpiry * 365).toFixed(0)} days`);
+
+  // risk card
+  document.getElementById('riskCard').innerHTML =
+    statRow('Sharpe Ratio', d.risk.sharpe.toFixed(4)) +
+    statRow('VaR (5%)', `$${d.risk.var5.toFixed(4)}`, 'red') +
+    statRow('CVaR (5%)', `$${d.risk.cvar5.toFixed(4)}`, 'red') +
+    statRow('Skewness', d.risk.skew.toFixed(4)) +
+    statRow('Kurtosis', d.risk.kurtosis.toFixed(4));
+
+  // contract card
+  const c = d.contract;
+  document.getElementById('contractCard').innerHTML =
+    statRow('Last Price', `$${c.lastPrice.toFixed(2)}`) +
+    statRow('Bid / Ask', `$${c.bid.toFixed(2)} / $${c.ask.toFixed(2)}`) +
+    statRow('Implied Vol', `${(c.impliedVolatility * 100).toFixed(1)}%`) +
+    statRow('Volume', c.volume.toLocaleString()) +
+    statRow('Open Interest', c.openInterest.toLocaleString()) +
+    statRow('In The Money', c.inTheMoney ? 'Yes' : 'No', c.inTheMoney ? 'green' : 'red');
+
+  // price comparison chart
+  renderPriceComp(d);
+
+  // paths chart
+  renderPaths(d, strike, optionType);
+
+  // terminal distribution
+  renderTerminal(d, strike, optionType);
+
+  // pnl chart
+  renderPnl(d);
+
+  // scroll to results
+  document.getElementById('verdictBanner').scrollIntoView({ behavior: 'smooth' });
+}
+
+const plotLayout = {
+  paper_bgcolor: '#1a1a2e',
+  plot_bgcolor: '#0f0f23',
+  font: { family: 'SF Mono, Fira Code, Consolas, monospace', color: '#e2e8f0', size: 11 },
+  margin: { t: 10, r: 20, b: 60, l: 65 },
+  xaxis: { gridcolor: '#2a2a4a', zerolinecolor: '#2a2a4a', tickfont: { size: 9 }, tickangle: -45, nticks: 10 },
+  yaxis: { gridcolor: '#2a2a4a', zerolinecolor: '#2a2a4a', tickfont: { size: 9 } },
+};
+
+function renderPriceComp(d) {
+  Plotly.newPlot('priceCompChart', [{
+    x: ['Market', 'MC Fair Value', 'BS Fair Value'],
+    y: [d.marketPrice, d.mcPrice, d.bsPrice],
+    type: 'bar',
+    marker: { color: ['#e74c3c', '#2ecc71', '#3498db'], line: { width: 0 } },
+    text: [`$${d.marketPrice.toFixed(4)}`, `$${d.mcPrice.toFixed(4)}`, `$${d.bsPrice.toFixed(4)}`],
+    textposition: 'outside',
+    textfont: { color: '#e2e8f0', size: 12 },
+  }], {
+    ...plotLayout,
+    margin: { t: 30, r: 20, b: 100, l: 65 },
+    yaxis: { ...plotLayout.yaxis, title: 'Price ($)' },
+  }, { responsive: true, displayModeBar: false });
+}
+
+function renderPaths(d, strike, optionType) {
+  const traces = [];
+  const t = d.paths.t;
+
+  for (let i = 0; i < d.paths.data.length; i++) {
+    const itm = d.paths.itm[i];
+    traces.push({
+      x: t, y: d.paths.data[i],
+      type: 'scatter', mode: 'lines',
+      line: { color: itm ? 'rgba(46,204,113,0.2)' : 'rgba(231,76,60,0.2)', width: 0.8 },
+      hoverinfo: 'skip',
+      showlegend: false,
+    });
+  }
+
+  // strike line
+  traces.push({
+    x: [t[0], t[t.length-1]], y: [strike, strike],
+    type: 'scatter', mode: 'lines',
+    line: { color: '#ffffff', width: 2, dash: 'dash' },
+    name: `Strike $${strike.toFixed(2)}`,
+  });
+
+  // spot line
+  traces.push({
+    x: [t[0], t[t.length-1]], y: [d.spot, d.spot],
+    type: 'scatter', mode: 'lines',
+    line: { color: '#3498db', width: 1.5 },
+    name: `Spot $${d.spot.toFixed(2)}`,
+  });
+
+  const itmCount = d.paths.itm.filter(x => x).length;
+  const total = d.paths.itm.length;
+
+  Plotly.newPlot('pathsChart', traces, {
+    ...plotLayout,
+    margin: { t: 10, r: 20, b: 100, l: 70 },
+    xaxis: { ...plotLayout.xaxis, title: 'Time (years)' },
+    yaxis: { ...plotLayout.yaxis, title: 'Stock Price ($)' },
+    legend: { x: 0.01, y: 0.99, bgcolor: 'rgba(22,33,62,0.8)', font: { size: 11 } },
+    annotations: [{
+      x: 0.99, y: 0.99, xref: 'paper', yref: 'paper',
+      text: `ITM: ${itmCount}/${total} (${(100*itmCount/total).toFixed(1)}%)`,
+      showarrow: false,
+      font: { color: '#2ecc71', size: 12 },
+      bgcolor: 'rgba(22,33,62,0.8)',
+      borderpad: 6,
+    }],
+  }, { responsive: true, displayModeBar: false });
+}
+
+function renderTerminal(d, strike, optionType) {
+  const itm = d.paths.terminal.filter(t => optionType === 'call' ? t > strike : t < strike);
+  const otm = d.paths.terminal.filter(t => optionType === 'call' ? t <= strike : t >= strike);
+
+  Plotly.newPlot('terminalChart', [
+    { x: otm, type: 'histogram', marker: { color: 'rgba(231,76,60,0.6)' }, name: 'OTM', nbinsx: 50 },
+    { x: itm, type: 'histogram', marker: { color: 'rgba(46,204,113,0.6)' }, name: 'ITM', nbinsx: 50 },
+  ], {
+    ...plotLayout,
+    barmode: 'overlay',
+    xaxis: { ...plotLayout.xaxis, title: 'Terminal Price ($)' },
+    yaxis: { ...plotLayout.yaxis, title: 'Frequency' },
+    legend: { x: 0.01, y: 0.99, bgcolor: 'rgba(22,33,62,0.8)' },
+    shapes: [{
+      type: 'line', x0: strike, x1: strike, y0: 0, y1: 1, yref: 'paper',
+      line: { color: 'white', width: 2, dash: 'dash' },
+    }],
+    margin: { t: 10, r: 20, b: 100, l: 65 },
+  }, { responsive: true, displayModeBar: false });
+}
+
+function renderPnl(d) {
+  // build PnL from terminal prices and market price
+  const strike = parseFloat(document.getElementById('strike').value);
+  const optionType = document.getElementById('optionType').value;
+  const premium = d.marketPrice;
+
+  const pnl = d.paths.terminal.map(st => {
+    const payoff = optionType === 'call' ? Math.max(st - strike, 0) : Math.max(strike - st, 0);
+    return payoff - premium;
+  });
+
+  const loss = pnl.filter(p => p < 0);
+  const profit = pnl.filter(p => p >= 0);
+
+  Plotly.newPlot('pnlChart', [
+    { x: loss, type: 'histogram', marker: { color: 'rgba(231,76,60,0.6)' }, name: 'Loss', nbinsx: 40 },
+    { x: profit, type: 'histogram', marker: { color: 'rgba(46,204,113,0.6)' }, name: 'Profit', nbinsx: 40 },
+  ], {
+    ...plotLayout,
+    barmode: 'overlay',
+    xaxis: { ...plotLayout.xaxis, title: 'PnL ($)' },
+    yaxis: { ...plotLayout.yaxis, title: 'Frequency' },
+    legend: { x: 0.01, y: 0.99, bgcolor: 'rgba(22,33,62,0.8)' },
+    shapes: [{
+      type: 'line', x0: 0, x1: 0, y0: 0, y1: 1, yref: 'paper',
+      line: { color: 'white', width: 1.5, dash: 'dash' },
+    }],
+    margin: { t: 10, r: 20, b: 100, l: 65 },
+  }, { responsive: true, displayModeBar: false });
+}
+
+// enter key on ticker input
+document.getElementById('ticker').addEventListener('keydown', e => {
+  if (e.key === 'Enter') fetchExpirations();
+});
+</script>
+</body>
+</html>

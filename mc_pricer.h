@@ -77,6 +77,36 @@ double monte_carlo_price(
     const Payoff &payoff, // use defined payoff logic
     std::mt19937 &rng);
 
+// put option pricing - single pass with greeks
+MCResult monte_carlo_put_with_greeks(
+    double S0,
+    double K,
+    double r,
+    double sigma,
+    double T,
+    int N,
+    std::mt19937 &rng);
+
+// antithetic put with greeks
+MCResult monte_carlo_put_antithetic_with_greeks(
+    double S0,
+    double K,
+    double r,
+    double sigma,
+    double T,
+    int N,
+    std::mt19937 &rng);
+
+// simulate full GBM paths for visualization - returns N paths x steps matrix (flattened row-major)
+std::vector<double> simulate_paths(
+    double S0,
+    double r,
+    double sigma,
+    double T,
+    int N,       // number of paths
+    int steps,   // time steps per path
+    std::mt19937 &rng);
+
 // -----------------------------
 // Black–Scholes analytical pricing
 // -----------------------------
@@ -89,6 +119,13 @@ double black_scholes_call_price(
     double T);
 
 double black_scholes_call_vega(
+    double S0,
+    double K,
+    double r,
+    double sigma,
+    double T);
+
+double black_scholes_put_price(
     double S0,
     double K,
     double r,

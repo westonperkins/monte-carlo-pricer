@@ -231,6 +231,105 @@ MCResult monte_carlo_call_antithetic_with_greeks(
         half_N, r, T, rng, payoff, delta_contrib);
 }
 
+// single pass monte carlo put price and delta
+MCResult monte_carlo_put_with_greeks(
+    double S0,
+    double K,
+    double r,
+    double sigma,
+    double T,
+    int N,
+    std::mt19937 &rng)
+{
+    auto payoff = [&](double Z)
+    {
+        double ST = simulate_terminal_price(S0, r, sigma, T, Z);
+        return std::max(K - ST, 0.0);
+    };
+
+    auto delta_contrib = [&](double Z)
+    {
+        double ST = simulate_terminal_price(S0, r, sigma, T, Z);
+        return (ST < K) ? -(ST / S0) : 0.0;
+    };
+
+    return monte_carlo_engine(
+        N, r, T, rng, payoff, delta_contrib);
+}
+
+// antithetic single pass monte carlo put price and delta
+MCResult monte_carlo_put_antithetic_with_greeks(
+    double S0,
+    double K,
+    double r,
+    double sigma,
+    double T,
+    int N,
+    std::mt19937 &rng)
+{
+    int half_N = N / 2;
+
+    auto payoff = [&](double Z)
+    {
+        double ST_pos = simulate_terminal_price(S0, r, sigma, T, Z);
+        double ST_neg = simulate_terminal_price(S0, r, sigma, T, -Z);
+
+        return 0.5 * (std::max(K - ST_pos, 0.0) +
+                      std::max(K - ST_neg, 0.0));
+    };
+
+    auto delta_contrib = [&](double Z)
+    {
+        double ST_pos = simulate_terminal_price(S0, r, sigma, T, Z);
+        double ST_neg = simulate_terminal_price(S0, r, sigma, T, -Z);
+
+        double d = 0.0;
+        if (ST_pos < K)
+            d += 0.5 * (-(ST_pos / S0));
+        if (ST_neg < K)
+            d += 0.5 * (-(ST_neg / S0));
+        return d;
+    };
+
+    return monte_carlo_engine(
+        half_N, r, T, rng, payoff, delta_contrib);
+}
+
+// simulate full GBM paths for visualization
+std::vector<double> simulate_paths(
+    double S0,
+    double r,
+    double sigma,
+    double T,
+    int N,
+    int steps,
+    std::mt19937 &rng)
+{
+    std::normal_distribution<> dist(0.0, 1.0);
+
+    double dt = T / steps;
+    double drift = (r - 0.5 * sigma * sigma) * dt;
+    double diffusion = sigma * std::sqrt(dt);
+
+    // row-major: path i, step j -> index i * (steps+1) + j
+    std::vector<double> paths(N * (steps + 1));
+
+    for (int i = 0; i < N; ++i)
+    {
+        int base = i * (steps + 1);
+        paths[base] = S0;
+
+        for (int j = 1; j <= steps; ++j)
+        {
+            double Z = dist(rng);
+            paths[base + j] = paths[base + j - 1] *
+                               std::exp(drift + diffusion * Z);
+        }
+    }
+
+    return paths;
+}
+
 // generic payoff based monte carlo pricing
 // prices any european style derivative using a user supplied payoff definition - simulation engine is independent of contract type
 double monte_carlo_price(
@@ -295,6 +394,27 @@ double black_scholes_call_price(
     double d2 = d1 - sigma * sqrtT;
 
     return S0 * normal_cdf(d1) - K * std::exp(-r * T) * normal_cdf(d2);
+}
+
+double black_scholes_put_price(
+    double S0,
+    double K,
+    double r,
+    double sigma,
+    double T)
+{
+    if (sigma <= 0.0 || T <= 0.0)
+        return std::max(K - S0, 0.0);
+
+    double sqrtT = std::sqrt(T);
+
+    double d1 = (std::log(S0 / K) +
+                 (r + 0.5 * sigma * sigma) * T) /
+                (sigma * sqrtT);
+
+    double d2 = d1 - sigma * sqrtT;
+
+    return K * std::exp(-r * T) * normal_cdf(-d2) - S0 * normal_cdf(-d1);
 }
 
 double black_scholes_call_vega(

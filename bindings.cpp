@@ -72,6 +72,32 @@ MCResult call_price_full_antithetic_py(
         S0, K, r, sigma, T, N, rng);
 }
 
+MCResult put_price_full_py(
+    double S0,
+    double K,
+    double r,
+    double sigma,
+    double T,
+    int N)
+{
+    std::mt19937 rng(42);
+    return monte_carlo_put_with_greeks(
+        S0, K, r, sigma, T, N, rng);
+}
+
+MCResult put_price_full_antithetic_py(
+    double S0,
+    double K,
+    double r,
+    double sigma,
+    double T,
+    int N)
+{
+    std::mt19937 rng(42);
+    return monte_carlo_put_antithetic_with_greeks(
+        S0, K, r, sigma, T, N, rng);
+}
+
 // -----------------------------
 // Python Module
 // -----------------------------
@@ -108,6 +134,32 @@ PYBIND11_MODULE(mc_pricer_py, m)
           &call_price_full_antithetic_py,
           py::arg("S0"), py::arg("K"), py::arg("r"),
           py::arg("sigma"), py::arg("T"), py::arg("N"));
+
+    m.def("put_price_full", &put_price_full_py,
+          py::arg("S0"), py::arg("K"), py::arg("r"),
+          py::arg("sigma"), py::arg("T"), py::arg("N"));
+
+    m.def("put_price_full_antithetic",
+          &put_price_full_antithetic_py,
+          py::arg("S0"), py::arg("K"), py::arg("r"),
+          py::arg("sigma"), py::arg("T"), py::arg("N"));
+
+    // Black-Scholes analytical
+    m.def("bs_call_price", &black_scholes_call_price,
+          py::arg("S0"), py::arg("K"), py::arg("r"),
+          py::arg("sigma"), py::arg("T"));
+
+    m.def("bs_put_price", &black_scholes_put_price,
+          py::arg("S0"), py::arg("K"), py::arg("r"),
+          py::arg("sigma"), py::arg("T"));
+
+    // Path simulation for visualization
+    m.def("simulate_paths", [](double S0, double r, double sigma, double T, int N, int steps)
+          {
+          std::mt19937 rng(42);
+          return simulate_paths(S0, r, sigma, T, N, steps, rng); },
+          py::arg("S0"), py::arg("r"), py::arg("sigma"),
+          py::arg("T"), py::arg("N"), py::arg("steps"));
 
     // -----------------------------
     // Implied Volatility
