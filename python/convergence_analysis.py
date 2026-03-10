@@ -3,72 +3,115 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 
-# convergence and variance reduction analysis
-# script compares monte carlo option pricing against the analytical black scholes price
-# goals:
-# 1. demonstrate monte carlo convergence as n increases
-# 2. compare standard MC vs antithetic variates
-# 3. visualize error decay on a log scale
-# validation and diagnostics tool, not part of the pricing engine itself
-
-# ensure python can locate the compiled C++ extension
+# Ensure Python can locate compiled module
 sys.path.append(os.path.abspath("../build"))
 
 import mc_pricer_py as mc
 from black_scholes import call_price
 
+# -----------------------------
+# Option Parameters
+# -----------------------------
 
-# option parameters
 S0 = 100.0
 K = 105.0
 r = 0.05
 sigma = 0.2
 T = 1.0
 
-# ground truth (analyitcal benchmark)
-# black scholes provides an exact solution for european options - monte carlo estimates should converge to this
 bs_price = call_price(S0, K, r, sigma, T)
 
-# monte carlo experiment sizes
-# increasing number of simulated price paths to observe convergence behavior
 Ns = np.array([1_000, 5_000, 10_000, 50_000, 100_000, 500_000])
 
-# containers for results
-mc_std = []  # standard monte carlo estimates
-mc_ant = []  # antithetic variates estimates
+# Containers
+mc_std = []
+mc_ant = []
 
-# run monte carlo experiments
+ci_std_lower = []
+ci_std_upper = []
+
+ci_ant_lower = []
+ci_ant_upper = []
+
+# -----------------------------
+# Run Experiments
+# -----------------------------
+
 for N in Ns:
     print(f"Running N={N}...")
 
-    # standard monte carlo pricing
-    price_std = mc.call_price(S0, K, r, sigma, T, int(N))
-    # monte carlo with antithetic ariance reduction
-    price_ant = mc.call_price_antithetic(S0, K, r, sigma, T, int(N))
+    res_std = mc.call_price_full(S0, K, r, sigma, T, int(N))
+    res_ant = mc.call_price_full_antithetic(S0, K, r, sigma, T, int(N))
 
-    mc_std.append(price_std)
-    mc_ant.append(price_ant)
+    mc_std.append(res_std.price)
+    ci_std_lower.append(res_std.ci_lower)
+    ci_std_upper.append(res_std.ci_upper)
 
-# convert results to NumPy arrays for analysis
+    mc_ant.append(res_ant.price)
+    ci_ant_lower.append(res_ant.ci_lower)
+    ci_ant_upper.append(res_ant.ci_upper)
+
 mc_std = np.array(mc_std)
 mc_ant = np.array(mc_ant)
 
-# plot 1: price convergence
+ci_std_lower = np.array(ci_std_lower)
+ci_std_upper = np.array(ci_std_upper)
+
+ci_ant_lower = np.array(ci_ant_lower)
+ci_ant_upper = np.array(ci_ant_upper)
+
+# -----------------------------
+# Plot 1: Convergence + CI Bands
+# -----------------------------
+
 plt.figure()
+
 plt.plot(Ns, mc_std, "o-", label="Standard MC")
+plt.fill_between(Ns, ci_std_lower, ci_std_upper, alpha=0.2)
+
 plt.plot(Ns, mc_ant, "o-", label="Antithetic MC")
+plt.fill_between(Ns, ci_ant_lower, ci_ant_upper, alpha=0.2)
+
 plt.axhline(bs_price, linestyle="--", label="Black–Scholes")
 
 plt.xscale("log")
 plt.xlabel("Number of paths (N)")
 plt.ylabel("Option price")
-plt.title("Monte Carlo convergence")
+plt.title("Monte Carlo Convergence with 95% CI")
 plt.legend()
 plt.tight_layout()
 plt.show()
 
-# plot 2: absolute pricing error
+# -----------------------------
+# Plot 2: CI Width Decay
+# -----------------------------
+
 plt.figure()
+
+ci_width_std = ci_std_upper - ci_std_lower
+ci_width_ant = ci_ant_upper - ci_ant_lower
+
+plt.plot(Ns, ci_width_std, "o-", label="Standard CI width")
+plt.plot(Ns, ci_width_ant, "o-", label="Antithetic CI width")
+
+theory = ci_width_std[0] * np.sqrt(Ns[0] / Ns)
+plt.plot(Ns, theory, "--", label="~ 1/sqrt(N)")
+
+plt.xscale("log")
+plt.yscale("log")
+plt.xlabel("Number of paths (N)")
+plt.ylabel("Confidence Interval Width")
+plt.title("Confidence Interval Decay")
+plt.legend()
+plt.tight_layout()
+plt.show()
+
+# -----------------------------
+# Plot 3: Absolute Pricing Error
+# -----------------------------
+
+plt.figure()
+
 plt.plot(Ns, np.abs(mc_std - bs_price), "o-", label="Standard MC error")
 plt.plot(Ns, np.abs(mc_ant - bs_price), "o-", label="Antithetic MC error")
 
@@ -76,7 +119,7 @@ plt.xscale("log")
 plt.yscale("log")
 plt.xlabel("Number of paths (N)")
 plt.ylabel("Absolute error")
-plt.title("Monte Carlo error decay")
+plt.title("Monte Carlo Error Decay")
 plt.legend()
 plt.tight_layout()
 plt.show()
