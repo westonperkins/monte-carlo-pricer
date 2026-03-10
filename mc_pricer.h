@@ -168,6 +168,7 @@ MCTradeStats monte_carlo_trade_stats(
     double T,
     double mu,      // real-world drift
     double premium, // price paid for option
+    bool is_call,   // true = call, false = put
     int N,
     std::mt19937 &rng);
 

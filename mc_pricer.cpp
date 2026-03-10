@@ -492,6 +492,7 @@ MCTradeStats monte_carlo_trade_stats(
     double T,
     double mu,
     double premium,
+    bool is_call,
     int N,
     std::mt19937 &rng)
 {
@@ -515,7 +516,9 @@ MCTradeStats monte_carlo_trade_stats(
         double Z = dist(rng);
         double ST = S0 * std::exp(drift + diffusion * Z);
 
-        double payoff = std::max(ST - K, 0.0);
+        double payoff = is_call
+                            ? std::max(ST - K, 0.0)
+                            : std::max(K - ST, 0.0);
         double pnl = payoff - premium;
 
         // Store full distribution
@@ -526,10 +529,10 @@ MCTradeStats monte_carlo_trade_stats(
         if (pnl > 0.0)
             count_profit++;
 
-        if (ST > K)
+        if (is_call ? (ST > K) : (ST < K))
             count_itm++;
 
-        if (ST > K + premium)
+        if (is_call ? (ST > K + premium) : (ST < K - premium))
             count_breakeven++;
     }
 

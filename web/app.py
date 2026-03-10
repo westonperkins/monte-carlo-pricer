@@ -16,6 +16,7 @@ from market_data import (
     fetch_contract,
     get_risk_free_rate,
     time_to_expiry,
+    estimate_historical_mu,
 )
 from risk_metrics import compute_risk_metrics
 import numpy as np
@@ -100,9 +101,9 @@ def api_analyze():
         mc_price = mc_result.price
 
         # trade stats
-        mu = 0.08
-        trade = mc.trade_stats(S0, strike, r, sigma, T, mu, market_price, num_sims)
-        risk = compute_risk_metrics(trade.pnl_paths)
+        mu = float(data.get("mu", 0)) or estimate_historical_mu(ticker)
+        trade = mc.trade_stats(S0, strike, r, sigma, T, mu, market_price, option_type, num_sims)
+        risk = compute_risk_metrics(trade.pnl_paths, premium=market_price, rf_rate=r, T=T)
 
         # simulate paths for visualization
         flat = mc.simulate_paths(S0, r, sigma, T, num_paths, steps)
@@ -135,6 +136,7 @@ def api_analyze():
             "stdError": mc_result.std_error,
             "delta": mc_result.delta,
             "diffPct": diff_pct,
+            "mu": mu,
             "expectedPnl": trade.expected_pnl,
             "probProfit": trade.prob_profit,
             "probItm": trade.prob_itm,

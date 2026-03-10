@@ -18,6 +18,7 @@ from market_data import (
     fetch_contract,
     get_risk_free_rate,
     time_to_expiry,
+    estimate_historical_mu,
 )
 from visualizer import plot_simulation_paths, plot_valuation_summary
 from risk_metrics import compute_risk_metrics
@@ -101,16 +102,16 @@ def run_analysis(ticker, expiration, strike, option_type="call", num_sims=500_00
         print(f"  Verdict:        FAIRLY PRICED — within noise of fair value")
 
     # trade stats
-    print(f"\n--- TRADE EVALUATION (assuming 8% annual drift) ---")
-    mu = 0.08
-    trade = mc.trade_stats(S0, strike, r, sigma, T, mu, market_price, num_sims)
+    mu = estimate_historical_mu(ticker)
+    print(f"\n--- TRADE EVALUATION (historical drift: {mu*100:.1f}%) ---")
+    trade = mc.trade_stats(S0, strike, r, sigma, T, mu, market_price, option_type, num_sims)
     print(f"  Expected PnL:   ${trade.expected_pnl:.4f}")
     print(f"  Prob Profit:    {trade.prob_profit*100:.1f}%")
     print(f"  Prob ITM:       {trade.prob_itm*100:.1f}%")
     print(f"  Prob Breakeven: {trade.prob_breakeven*100:.1f}%")
 
     # risk metrics
-    risk = compute_risk_metrics(trade.pnl_paths)
+    risk = compute_risk_metrics(trade.pnl_paths, premium=market_price, rf_rate=r, T=T)
     print(f"\n--- RISK METRICS ---")
     print(f"  Sharpe Ratio:   {risk['sharpe']:.4f}")
     print(f"  VaR (5%):       ${risk['VaR_5%']:.4f}")

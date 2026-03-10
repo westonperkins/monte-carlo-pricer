@@ -2,6 +2,7 @@ import yfinance as yf
 from datetime import datetime
 import time
 import functools
+import numpy as np
 
 # cache with TTL — stores (timestamp, value) pairs
 _cache = {}
@@ -74,10 +75,25 @@ def get_risk_free_rate():
 def time_to_expiry(expiration_str):
     exp_date = datetime.strptime(expiration_str, "%Y-%m-%d")
     today = datetime.today()
-    days = (exp_date - today).days
-    if days <= 0:
+    if exp_date <= today:
         raise ValueError(f"Expiration {expiration_str} is in the past")
-    return days / 365.0
+    trading_days = int(np.busday_count(today.date(), exp_date.date()))
+    if trading_days <= 0:
+        raise ValueError(f"Expiration {expiration_str} has no trading days remaining")
+    return trading_days / 252.0
+
+
+def estimate_historical_mu(ticker, period="1y"):
+    def fetch():
+        hist = yf.Ticker(ticker).history(period=period)
+        if hist.empty or len(hist) < 20:
+            return 0.08
+        log_returns = np.log(hist["Close"] / hist["Close"].shift(1)).dropna()
+        return float(log_returns.mean() * 252)
+    try:
+        return _cached(f"mu:{ticker}:{period}", lambda: _retry(fetch))
+    except Exception:
+        return 0.08
 
 
 def fetch_contract(ticker, expiration, strike, option_type="call"):

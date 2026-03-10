@@ -1,5 +1,6 @@
 #include <pybind11/pybind11.h>
 #include <random>
+#include <string>
 #include <pybind11/stl.h>
 #include "mc_pricer.h"
 
@@ -15,9 +16,10 @@ double call_price_py(
     double r,
     double sigma,
     double T,
-    int N)
+    int N,
+    int seed = -1)
 {
-    std::mt19937 rng(42);
+    std::mt19937 rng(seed < 0 ? std::random_device{}() : static_cast<unsigned>(seed));
     return monte_carlo_call(S0, K, r, sigma, T, N, rng);
 }
 
@@ -27,9 +29,10 @@ double call_price_antithetic_py(
     double r,
     double sigma,
     double T,
-    int N)
+    int N,
+    int seed = -1)
 {
-    std::mt19937 rng(42);
+    std::mt19937 rng(seed < 0 ? std::random_device{}() : static_cast<unsigned>(seed));
     return monte_carlo_call_antithetic(S0, K, r, sigma, T, N, rng);
 }
 
@@ -40,9 +43,10 @@ double delta_py(
     double sigma,
     double T,
     int N,
-    double h = 1e-4)
+    double h = 1e-4,
+    int seed = -1)
 {
-    std::mt19937 rng(42);
+    std::mt19937 rng(seed < 0 ? std::random_device{}() : static_cast<unsigned>(seed));
     return monte_carlo_delta(S0, K, r, sigma, T, N, h, rng);
 }
 
@@ -52,9 +56,10 @@ MCResult call_price_full_py(
     double r,
     double sigma,
     double T,
-    int N)
+    int N,
+    int seed = -1)
 {
-    std::mt19937 rng(42);
+    std::mt19937 rng(seed < 0 ? std::random_device{}() : static_cast<unsigned>(seed));
     return monte_carlo_call_with_greeks(
         S0, K, r, sigma, T, N, rng);
 }
@@ -65,9 +70,10 @@ MCResult call_price_full_antithetic_py(
     double r,
     double sigma,
     double T,
-    int N)
+    int N,
+    int seed = -1)
 {
-    std::mt19937 rng(42);
+    std::mt19937 rng(seed < 0 ? std::random_device{}() : static_cast<unsigned>(seed));
     return monte_carlo_call_antithetic_with_greeks(
         S0, K, r, sigma, T, N, rng);
 }
@@ -78,9 +84,10 @@ MCResult put_price_full_py(
     double r,
     double sigma,
     double T,
-    int N)
+    int N,
+    int seed = -1)
 {
-    std::mt19937 rng(42);
+    std::mt19937 rng(seed < 0 ? std::random_device{}() : static_cast<unsigned>(seed));
     return monte_carlo_put_with_greeks(
         S0, K, r, sigma, T, N, rng);
 }
@@ -91,9 +98,10 @@ MCResult put_price_full_antithetic_py(
     double r,
     double sigma,
     double T,
-    int N)
+    int N,
+    int seed = -1)
 {
-    std::mt19937 rng(42);
+    std::mt19937 rng(seed < 0 ? std::random_device{}() : static_cast<unsigned>(seed));
     return monte_carlo_put_antithetic_with_greeks(
         S0, K, r, sigma, T, N, rng);
 }
@@ -115,34 +123,41 @@ PYBIND11_MODULE(mc_pricer_py, m)
 
     m.def("call_price", &call_price_py,
           py::arg("S0"), py::arg("K"), py::arg("r"),
-          py::arg("sigma"), py::arg("T"), py::arg("N"));
+          py::arg("sigma"), py::arg("T"), py::arg("N"),
+          py::arg("seed") = -1);
 
     m.def("call_price_antithetic", &call_price_antithetic_py,
           py::arg("S0"), py::arg("K"), py::arg("r"),
-          py::arg("sigma"), py::arg("T"), py::arg("N"));
+          py::arg("sigma"), py::arg("T"), py::arg("N"),
+          py::arg("seed") = -1);
 
     m.def("delta", &delta_py,
           py::arg("S0"), py::arg("K"), py::arg("r"),
           py::arg("sigma"), py::arg("T"),
-          py::arg("N"), py::arg("h") = 1e-4);
+          py::arg("N"), py::arg("h") = 1e-4,
+          py::arg("seed") = -1);
 
     m.def("call_price_full", &call_price_full_py,
           py::arg("S0"), py::arg("K"), py::arg("r"),
-          py::arg("sigma"), py::arg("T"), py::arg("N"));
+          py::arg("sigma"), py::arg("T"), py::arg("N"),
+          py::arg("seed") = -1);
 
     m.def("call_price_full_antithetic",
           &call_price_full_antithetic_py,
           py::arg("S0"), py::arg("K"), py::arg("r"),
-          py::arg("sigma"), py::arg("T"), py::arg("N"));
+          py::arg("sigma"), py::arg("T"), py::arg("N"),
+          py::arg("seed") = -1);
 
     m.def("put_price_full", &put_price_full_py,
           py::arg("S0"), py::arg("K"), py::arg("r"),
-          py::arg("sigma"), py::arg("T"), py::arg("N"));
+          py::arg("sigma"), py::arg("T"), py::arg("N"),
+          py::arg("seed") = -1);
 
     m.def("put_price_full_antithetic",
           &put_price_full_antithetic_py,
           py::arg("S0"), py::arg("K"), py::arg("r"),
-          py::arg("sigma"), py::arg("T"), py::arg("N"));
+          py::arg("sigma"), py::arg("T"), py::arg("N"),
+          py::arg("seed") = -1);
 
     // Black-Scholes analytical
     m.def("bs_call_price", &black_scholes_call_price,
@@ -154,12 +169,13 @@ PYBIND11_MODULE(mc_pricer_py, m)
           py::arg("sigma"), py::arg("T"));
 
     // Path simulation for visualization
-    m.def("simulate_paths", [](double S0, double r, double sigma, double T, int N, int steps)
+    m.def("simulate_paths", [](double S0, double r, double sigma, double T, int N, int steps, int seed)
           {
-          std::mt19937 rng(42);
+          std::mt19937 rng(seed < 0 ? std::random_device{}() : static_cast<unsigned>(seed));
           return simulate_paths(S0, r, sigma, T, N, steps, rng); },
           py::arg("S0"), py::arg("r"), py::arg("sigma"),
-          py::arg("T"), py::arg("N"), py::arg("steps"));
+          py::arg("T"), py::arg("N"), py::arg("steps"),
+          py::arg("seed") = -1);
 
     // -----------------------------
     // Implied Volatility
@@ -187,10 +203,17 @@ PYBIND11_MODULE(mc_pricer_py, m)
         .def_readonly("prob_breakeven", &MCTradeStats::prob_breakeven)
         .def_readonly("pnl_paths", &MCTradeStats::pnl_paths);
 
-    m.def("trade_stats", [](double S0, double K, double r, double sigma, double T, double mu, double premium, int N)
+    m.def("trade_stats", [](double S0, double K, double r, double sigma,
+                            double T, double mu, double premium,
+                            const std::string &option_type, int N, int seed)
           {
-          std::mt19937 rng(42);
+          std::mt19937 rng(seed < 0 ? std::random_device{}() : static_cast<unsigned>(seed));
+          bool is_call = (option_type == "call");
           return monte_carlo_trade_stats(
               S0, K, r, sigma, T,
-              mu, premium, N, rng); }, py::arg("S0"), py::arg("K"), py::arg("r"), py::arg("sigma"), py::arg("T"), py::arg("mu"), py::arg("premium"), py::arg("N"));
+              mu, premium, is_call, N, rng); },
+          py::arg("S0"), py::arg("K"), py::arg("r"),
+          py::arg("sigma"), py::arg("T"), py::arg("mu"),
+          py::arg("premium"), py::arg("option_type"),
+          py::arg("N"), py::arg("seed") = -1);
 }
