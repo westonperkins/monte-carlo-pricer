@@ -594,7 +594,7 @@ function renderResults(d, ticker, expiration, strike, optionType) {
     statRow('Prob Breakeven', `${(d.probBreakeven * 100).toFixed(1)}%`) +
     statRow('IV', `${(d.sigma * 100).toFixed(1)}%`) +
     statRow('Risk-Free Rate', `${(d.riskFreeRate * 100).toFixed(2)}%`) +
-    statRow('Time to Expiry', `${(d.timeToExpiry * 365).toFixed(0)} days`);
+    statRow('Time to Expiry', `${(d.timeToExpiry * 252).toFixed(0)} trading days`);
 
   // risk card
   document.getElementById('riskCard').innerHTML =
@@ -657,7 +657,8 @@ function renderPriceComp(d) {
 
 function renderPaths(d, strike, optionType) {
   const traces = [];
-  const t = d.paths.t;
+  // Bug 1 fix: convert x-axis from fractional years to calendar days
+  const t = d.paths.t.map(v => v * 365);
 
   for (let i = 0; i < d.paths.data.length; i++) {
     const itm = d.paths.itm[i];
@@ -689,11 +690,15 @@ function renderPaths(d, strike, optionType) {
   const itmCount = d.paths.itm.filter(x => x).length;
   const total = d.paths.itm.length;
 
+  // Bug 2 fix: lock y-axis to a meaningful range regardless of strike placement
+  const yMin = d.spot * 0.85;
+  const yMax = Math.max(strike * 1.05, d.spot * 1.15);
+
   Plotly.newPlot('pathsChart', traces, {
     ...plotLayout,
     margin: { t: 10, r: 20, b: 100, l: 70 },
-    xaxis: { ...plotLayout.xaxis, title: 'Time (years)' },
-    yaxis: { ...plotLayout.yaxis, title: 'Stock Price ($)' },
+    xaxis: { ...plotLayout.xaxis, title: 'Time (days)' },
+    yaxis: { ...plotLayout.yaxis, title: 'Stock Price ($)', range: [yMin, yMax] },
     legend: { x: 0.01, y: 0.99, bgcolor: 'rgba(22,33,62,0.8)', font: { size: 11 } },
     annotations: [{
       x: 0.99, y: 0.99, xref: 'paper', yref: 'paper',
@@ -757,6 +762,18 @@ function renderPnl(d) {
     margin: { t: 10, r: 20, b: 100, l: 65 },
   }, { responsive: true, displayModeBar: false });
 }
+
+// when ticker changes, reset chain data so stale strikes can't be used
+document.getElementById('ticker').addEventListener('input', () => {
+  chainData = null;
+  spotPrice = null;
+  document.getElementById('expiration').innerHTML = '<option>-- load chain first --</option>';
+  document.getElementById('expiration').disabled = true;
+  document.getElementById('strike').innerHTML = '<option>-- select expiration --</option>';
+  document.getElementById('strike').disabled = true;
+  document.getElementById('analyzeBtn').disabled = true;
+  document.getElementById('results').classList.remove('visible');
+});
 
 // enter key on ticker input
 document.getElementById('ticker').addEventListener('keydown', e => {
